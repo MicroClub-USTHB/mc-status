@@ -23,13 +23,16 @@ projects:
     checks:
       - id: web
         type: http
-        url: "" # TODO: real HTTP/HTTPS URL
+        url: "https://mcid.microclub.info/"
       - id: dns
         type: dns
         url: "" # TODO: real hostname
       - id: certificate
         type: tls
         url: "" # TODO: real HTTPS URL
+      - id: ci
+        type: repo
+        repo: "MicroClub-USTHB/MCID"
 
   - name: HR event platform
     group: Core
