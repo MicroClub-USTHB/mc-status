@@ -1,0 +1,43 @@
+{
+  "name": "mc-status",
+  "private": true,
+  "type": "module",
+  "packageManager": "bun@1.4.4",
+  "engines": {
+    "bun": "1.4.4"
+  },
+  "scripts": {
+    "dev": "bun run build:assets && bun --no-env-file --watch src/server.ts",
+    "start": "bun run build:assets && bun --no-env-file src/server.ts",
+    "preview:ui": "bun run build:assets && bun --no-env-file scripts/preview-ui.tsx",
+    "build:assets": "bun run build:css && bun --no-env-file build src/ui/status-clock.ts --target browser --outfile dist/status-clock.js --minify",
+    "build:css": "bun --no-env-file --bun tailwindcss -i src/ui/styles.css -o dist/status.css --minify",
+    "build:linux": "bun run build:assets && bun --no-env-file build --compile --no-compile-autoload-dotenv --target=bun-linux-x64 src/server.ts --outfile build/linux-x64/mc-status && cp targets.yaml README.md build/linux-x64/",
+    "build:windows": "bun run build:assets && bun --no-env-file build --compile --no-compile-autoload-dotenv --target=bun-windows-x64 src/server.ts --outfile build/windows-x64/mc-status.exe && cp targets.yaml README.md build/windows-x64/",
+    "typecheck": "tsc --noEmit",
+    "validate": "bun --no-env-file src/validate.ts",
+    "test": "bun --no-env-file --bun vitest run"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "4.3.5",
+    "@types/bun": "1.4.4",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "shadcn": "4.23.0",
+    "tailwindcss": "4.3.5",
+    "typescript": "7.0.2",
+    "vitest": "5.1.0"
+  },
+  "dependencies": {
+    "@base-ui/react": "^1.9.0",
+    "@fontsource-variable/dm-sans": "^5.3.0",
+    "@fontsource-variable/plus-jakarta-sans": "^5.3.0",
+    "class-variance-authority": "^0.7.1",
+    "cn": "0.5.2",
+    "lucide-react": "^1.72.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "yaml": "2.9.1",
+    "zod": "4.6.7"
+  }
+}

@@ -1,0 +1,9 @@
+node_modules/
+.bun-cache/
+dist/
+build/
+.env
+data/
+*.log*
+/AGENTS.md
+/TASKS.md

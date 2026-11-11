@@ -1,0 +1,172 @@
+interval: 60 # seconds between HTTP/TCP checks
+timeout: 10  # seconds before a network probe times out
+
+# Names, groups, and check IDs are public display text; do not put secrets here.
+# Groups: Core, Infra, Repos. Check types: http, tcp, dns, tls, repo (exact spelling).
+# Empty addresses disable checks. Fill these in, validate, then restart.
+projects:
+  - name: Micro Club website
+    group: Core
+    checks:
+      - id: web
+        type: http
+        url: "https://www.microclub.info/"
+      - id: dns
+        type: dns
+        url: "" # TODO: real hostname
+      - id: certificate
+        type: tls
+        url: "" # TODO: real HTTPS URL
+
+  - name: MCID
+    group: Core
+    checks:
+      - id: web
+        type: http
+        url: "" # TODO: real HTTP/HTTPS URL
+      - id: dns
+        type: dns
+        url: "" # TODO: real hostname
+      - id: certificate
+        type: tls
+        url: "" # TODO: real HTTPS URL
+
+  - name: HR event platform
+    group: Core
+    checks:
+      - id: web
+        type: http
+        url: "" # TODO: real HTTP/HTTPS URL
+      - id: dns
+        type: dns
+        url: "" # TODO: real hostname
+      - id: certificate
+        type: tls
+        url: "" # TODO: real HTTPS URL
+
+  - name: multi-ai
+    group: Core
+    checks:
+      - id: web
+        type: http
+        url: "" # TODO: real HTTP/HTTPS URL
+      - id: dns
+        type: dns
+        url: "" # TODO: real hostname
+      - id: certificate
+        type: tls
+        url: "" # TODO: real HTTPS URL
+
+  - name: foundit
+    group: Core
+    checks:
+      - id: web
+        type: http
+        url: "" # TODO: real HTTP/HTTPS URL
+      - id: dns
+        type: dns
+        url: "" # TODO: real hostname
+      - id: certificate
+        type: tls
+        url: "" # TODO: real HTTPS URL
+
+  - name: dev-leaderboard
+    group: Core
+    checks:
+      - id: web
+        type: http
+        url: "" # TODO: real HTTP/HTTPS URL
+      - id: dns
+        type: dns
+        url: "" # TODO: real hostname
+      - id: certificate
+        type: tls
+        url: "" # TODO: real HTTPS URL
+
+  - name: calendit
+    group: Core
+    checks:
+      - id: web
+        type: http
+        url: "" # TODO: real HTTP/HTTPS URL
+      - id: dns
+        type: dns
+        url: "" # TODO: real hostname
+      - id: certificate
+        type: tls
+        url: "" # TODO: real HTTPS URL
+
+  - name: mcoli docs
+    group: Core
+    checks:
+      - id: web
+        type: http
+        url: "https://mcoli-ui.microclub.info/"
+      - id: dns
+        type: dns
+        url: "" # TODO: real hostname
+      - id: certificate
+        type: tls
+        url: "" # TODO: real HTTPS URL
+
+  - name: m-seismo dashboard
+    group: Core
+    checks:
+      - id: web
+        type: http
+        url: "" # TODO: real HTTP/HTTPS URL
+      - id: dns
+        type: dns
+        url: "" # TODO: real hostname
+      - id: certificate
+        type: tls
+        url: "" # TODO: real HTTPS URL
+
+  - name: mcoli ui
+    group: Repos
+    checks:
+      - id: ci
+        type: repo
+        repo: "MicroClub-USTHB/mcoli-ui"
+
+  - name: effect library
+    group: Repos
+    checks:
+      - id: ci
+        type: repo
+        repo: "" # TODO: real GitHub owner/name
+
+  - name: flutter loaders
+    group: Repos
+    checks:
+      - id: ci
+        type: repo
+        repo: "MicroClub-USTHB/micro_loaders"
+
+  - name: Rust security SDK
+    group: Repos
+    checks:
+      - id: ci
+        type: repo
+        repo: "" # TODO: real GitHub owner/name
+
+  - name: mctf-cli
+    group: Repos
+    checks:
+      - id: ci
+        type: repo
+        repo: "" # TODO: real GitHub owner/name
+
+  - name: mc-motion-games
+    group: Repos
+    checks:
+      - id: ci
+        type: repo
+        repo: "" # TODO: real GitHub owner/name
+
+  - name: m-seismo SDK
+    group: Repos
+    checks:
+      - id: ci
+        type: repo
+        repo: "" # TODO: real GitHub owner/name
