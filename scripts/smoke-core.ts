@@ -118,7 +118,7 @@ try {
   app = startApp();
   base = `http://127.0.0.1:${await waitFor("the server port", app.getPort)}`;
   const up = await waitForPage("the initial successful probe", "All checks passing");
-  assert.match(up, /data-slot="badge"[^>]*>Up</);
+  assert.match(up, /class="state-badge" data-state="up">Up</);
   assert.match(up.replace(/<[^>]+>/g, ""), /24h uptime 100%/);
   assert.match(up, />TCP</);
   assert.doesNotMatch(up, /fixture-secret|disabled-check/);
@@ -128,7 +128,7 @@ try {
   const stylesheet = await fetch(`${base}/assets/status.css`);
   assert.equal(stylesheet.status, 200);
   assert.match(stylesheet.headers.get("content-type") ?? "", /^text\/css/);
-  assert.match(await stylesheet.text(), /\.text-destructive\b/);
+  assert.match(await stylesheet.text(), /\.state-badge\[data-state=("|')?down\b/);
   for (const path of ["/targets.yaml", "/status.db", "/data/mc-status.db", "/.env"]) {
     assert.equal((await fetch(base + path)).status, 404);
   }
@@ -156,12 +156,12 @@ try {
   await target.stop(true);
   target = undefined;
   const firstFailure = await waitForPage("the first failed probe", "1 check with a failed last probe");
-  assert.match(firstFailure, /data-slot="badge"[^>]*>Up</);
+  assert.match(firstFailure, /class="state-badge" data-state="up">Up</);
   assert.match(firstFailure, /Last probe failed · Connection failed/);
   assert.deepEqual(events.all(), []);
 
   const down = await waitForPage("a confirmed outage", "1 service check failing");
-  assert.match(down, /data-slot="badge"[^>]*>Down</);
+  assert.match(down, /class="state-badge" data-state="down">Down</);
   assert.match(down, /Recent outages/);
   assert.equal(state.get(checkId)?.consecutive_failures, 3);
   assert.equal(state.get(tcpCheckId)?.state, "up");
@@ -181,7 +181,7 @@ try {
 
   target = serveTarget(targetPort);
   const recovered = await waitForPage("recovery on the page", "All checks passing");
-  assert.match(recovered, /data-slot="badge"[^>]*>Recovered</);
+  assert.match(recovered, /class="event-kind">Recovered</);
   assert.deepEqual(events.all(), [httpDown, httpRecovered]);
 
   tcpTarget.stop(true);

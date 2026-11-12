@@ -1,11 +1,7 @@
-import statusCss from "../dist/status.css" with { type: "file" };
-import statusClock from "../dist/status-clock.js" with { type: "file" };
-import dmSans from "@fontsource-variable/dm-sans/files/dm-sans-latin-wght-normal.woff2" with { type: "file" };
-import plusJakartaSans from "@fontsource-variable/plus-jakarta-sans/files/plus-jakarta-sans-latin-wght-normal.woff2" with { type: "file" };
-import favicon from "./ui/favicon.png" with { type: "file" };
 import { getActiveProjects, getConfigErrorMessage, loadTargetsConfig } from "./config";
 import { getCheckSummary, getRecentOutages, openDatabase } from "./db";
 import { startScheduler } from "./scheduler";
+import { pageAssets } from "./ui/page-assets";
 import { renderStatusPage } from "./ui/status-page";
 
 export async function startServer(port = 3000) {
@@ -23,14 +19,6 @@ export async function startServer(port = 3000) {
     ),
   ));
   const activeCheckIds = [...activeChecks.keys()];
-  const pageAssets = new Map([
-    ["/assets/favicon.png", Bun.file(favicon, { type: "image/png" })],
-    ["/assets/status.css", Bun.file(statusCss, { type: "text/css; charset=utf-8" })],
-    ["/assets/status-clock.js", Bun.file(statusClock, { type: "text/javascript; charset=utf-8" })],
-    ["/assets/dm-sans.woff2", Bun.file(dmSans, { type: "font/woff2" })],
-    ["/assets/plus-jakarta-sans.woff2", Bun.file(plusJakartaSans, { type: "font/woff2" })],
-  ]);
-
   let db: ReturnType<typeof openDatabase>;
   try {
     db = openDatabase();

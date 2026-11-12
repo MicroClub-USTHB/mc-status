@@ -184,7 +184,7 @@ try {
   }
 
   const rateLimited = () => new Response(secret, { status: 429 });
-  const firstUnavailable = await runCheck(rateLimited, "No confirmed failures; some checks unavailable");
+  const firstUnavailable = await runCheck(rateLimited, "No confirmed failures. Some checks unavailable");
   assert.match(firstUnavailable.replace(/<[^>]+>/g, ""), /24h uptime n\/a/);
   await runCheck(() => runs(), "No CI runs on the default branch");
   await runCheck(() => runs(complete("success")), "Last confirmed passing");

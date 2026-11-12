@@ -1,12 +1,10 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { History, TriangleAlert } from "lucide-react";
+import {
+  Activity, ArrowDown, ArrowUp, Check, CircleMinus, Clock3, GitBranch,
+  Layers3, Minus, Network, TriangleAlert, X,
+} from "lucide-react";
 import type { CheckType, ProjectGroup } from "../config";
 import type { CheckSummary, GitHubUnavailableReason, OutageEvent } from "../db";
-import { McAlert } from "./components/mc-alert";
-import { McBadge } from "./components/mc-badge";
-import { McButton } from "./components/mc-button";
-import { McCard, McCardContent, McCardHeader } from "./components/mc-card";
-import { McSeparator } from "./components/mc-separator";
 import { formatStatusAge } from "./status-time";
 
 interface StatusProject {
@@ -25,13 +23,15 @@ const typeLabels: Record<CheckType, string> = {
   tls: "TLS",
   repo: "CI",
 };
-const stateBadges = {
-  up: { label: "Up", variant: "default" },
-  down: { label: "Down", variant: "destructive" },
-  unknown: { label: "Unknown", variant: "outline" },
+const groupIcons = { Core: Layers3, Infra: Network, Repos: GitBranch };
+const signals = {
+  up: { label: "Up", icon: Check },
+  down: { label: "Down", icon: X },
+  warning: { label: "Warning", icon: TriangleAlert },
+  unknown: { label: "Unknown", icon: Minus },
 } as const;
-const successBadgeStyle = "border-success/40 bg-success-foreground text-foreground";
-const focusStyle = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary";
+type Signal = keyof typeof signals;
+type StatusCheck = StatusProject["checks"][number];
 const githubNoticeLabels: Record<GitHubUnavailableReason, string> = {
   timeout: "Request timed out",
   rate_limit: "Rate limited",
@@ -76,14 +76,9 @@ function CertificateDetails({ summary, now }: { summary: CheckSummary; now: numb
   return (
     <>
       {certificateIsExpiring(summary, now) && (
-        <p>
-          <McBadge
-            variant="outline"
-            className="border-warning/40 bg-warning-foreground text-orange-600"
-            icon={<TriangleAlert aria-hidden="true" />}
-          >
-            Certificate expires soon
-          </McBadge>
+        <p className="check-notice">
+          <TriangleAlert size={15} aria-hidden="true" />
+          <strong>Certificate expires soon</strong>
         </p>
       )}
       <p>
@@ -108,8 +103,8 @@ function GitHubDetails({ summary, now }: { summary: CheckSummary; now: number })
   return (
     <>
       {repoNotice && (
-        <p className="flex items-start gap-2">
-          <TriangleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-orange-600" />
+        <p className="check-notice">
+          <TriangleAlert size={15} aria-hidden="true" />
           <span>
             GitHub check unavailable · {githubNoticeLabels[repoNotice]}
             {lastCheckAt !== null && <> · <StatusTime at={lastCheckAt} now={now} /></>}
@@ -126,11 +121,14 @@ function GitHubDetails({ summary, now }: { summary: CheckSummary; now: number })
   );
 }
 
-type SummaryItem = { label: string; tone: "healthy" | "failure" | "warning" | "neutral" };
+type SummaryTone = "healthy" | "failure" | "warning" | "neutral";
+type SummaryItem = { label: string; tone: SummaryTone };
 
-function getSummaryItems(projects: readonly StatusProject[], now: number): [SummaryItem, ...SummaryItem[]] {
-  const checks = projects.flatMap((project) => project.checks);
-  if (checks.length === 0) return [{ label: "No checks configured", tone: "neutral" }];
+function getSummary(checks: readonly StatusCheck[], now: number) {
+  const issues: SummaryItem[] = [];
+  if (checks.length === 0) {
+    return { label: "No checks configured", tone: "neutral", issues } as const;
+  }
 
   const down = checks.filter(({ summary }) => summary.state === "down");
   const serviceDown = down.filter(({ type }) => type === "http" || type === "tcp").length;
@@ -140,55 +138,142 @@ function getSummaryItems(projects: readonly StatusProject[], now: number): [Summ
   const certificateWarnings = checks.filter(({ type, summary }) =>
     type === "tls" && certificateIsExpiring(summary, now),
   ).length;
-  const unconfirmed = checks.filter(({ summary }) => summary.state === "unknown").length;
+  const unknown = checks.filter(({ summary }) => summary.state === "unknown").length;
   const recentFailures = checks.filter(({ type, summary }) =>
     type !== "repo" && summary.state === "up" && summary.lastError,
   ).length;
-  const unavailable = checks.filter(({ type, summary }) =>
-    type === "repo" && summary.repoNotice && summary.repoNotice !== "no_ci",
-  ).length;
-  const items: SummaryItem[] = [];
+  const unavailable = checks.filter(({ type, summary }) => type === "repo" && githubIsUnavailable(summary)).length;
+
   if (serviceDown) {
-    items.push({ label: `${serviceDown} service check${serviceDown === 1 ? "" : "s"} failing`, tone: "failure" });
+    issues.push({ label: `${serviceDown} service check${serviceDown === 1 ? "" : "s"} failing`, tone: "failure" });
   }
-  if (ciDown) items.push({ label: `${ciDown} CI check${ciDown === 1 ? "" : "s"} failing`, tone: "failure" });
-  if (dnsDown) items.push({ label: `${dnsDown} DNS check${dnsDown === 1 ? "" : "s"} failing`, tone: "failure" });
+  if (ciDown) issues.push({ label: `${ciDown} CI check${ciDown === 1 ? "" : "s"} failing`, tone: "failure" });
+  if (dnsDown) issues.push({ label: `${dnsDown} DNS check${dnsDown === 1 ? "" : "s"} failing`, tone: "failure" });
   if (certificateProblems) {
-    items.push({ label: `${certificateProblems} certificate problem${certificateProblems === 1 ? "" : "s"}`, tone: "failure" });
+    issues.push({ label: `${certificateProblems} certificate problem${certificateProblems === 1 ? "" : "s"}`, tone: "failure" });
   }
   if (certificateWarnings) {
-    items.push({ label: `${certificateWarnings} certificate warning${certificateWarnings === 1 ? "" : "s"}`, tone: "warning" });
+    issues.push({ label: `${certificateWarnings} certificate warning${certificateWarnings === 1 ? "" : "s"}`, tone: "warning" });
   }
-  if (unavailable) {
-    items.push({
-      label: down.length === 0 ? "No confirmed failures; some checks unavailable"
-        : `${unavailable} check${unavailable === 1 ? "" : "s"} unavailable`,
+  if (unavailable && down.length > 0) {
+    issues.push({
+      label: `${unavailable} check${unavailable === 1 ? "" : "s"} unavailable`,
       tone: "warning",
     });
   }
-  if (unconfirmed) {
-    items.push({
-      label: unconfirmed === 1
-        ? "1 check has no confirmed status yet"
-        : `${unconfirmed} checks have no confirmed status yet`,
-      tone: "neutral",
-    });
-  }
   if (recentFailures) {
-    items.push({
+    issues.push({
       label: `${recentFailures} check${recentFailures === 1 ? "" : "s"} with a failed last probe`,
       tone: "warning",
     });
   }
-  const [firstIssue, ...otherIssues] = items;
-  if (firstIssue) return [firstIssue, ...otherIssues];
+  if (unknown) {
+    issues.push({ label: `${unknown} check${unknown === 1 ? "" : "s"} pending`, tone: "neutral" });
+  }
+  if (unavailable && down.length === 0) {
+    return { label: "No confirmed failures. Some checks unavailable", tone: "warning", issues } as const;
+  }
+  if (issues.length > 0) {
+    const tone = issues[0]!.tone;
+    return { label: tone === "neutral" ? "Checks pending" : "Checks need attention", tone, issues };
+  }
+
   const olderCiResult = checks.some(({ type, summary }) =>
     type === "repo" && summary.lastCheckAt !== summary.lastConfirmedAt,
   );
-  return [{
+  return {
     label: olderCiResult ? "All checks passing at last confirmation" : "All checks passing",
     tone: "healthy",
-  }];
+    issues,
+  } as const;
+}
+
+function githubIsUnavailable(summary: CheckSummary): boolean {
+  return summary.repoNotice !== null && summary.repoNotice !== "no_ci";
+}
+
+function getSignal({ type, summary }: StatusCheck, now: number): Signal {
+  if (summary.state === "down") return "down";
+  if (type === "repo" && githubIsUnavailable(summary)) return "warning";
+  if (type === "tls" && certificateIsExpiring(summary, now)) return "warning";
+  if (summary.state === "up" && summary.lastError !== null) return "warning";
+  return summary.state;
+}
+
+type StatusGroup = { name: ProjectGroup; projects: StatusProject[] };
+
+function CheckMap({ groups, now }: { groups: readonly StatusGroup[]; now: number }) {
+  const rows = groups.map(({ name, projects }) => ({
+    name,
+    tiles: projects.flatMap(({ name: project, id, checks }) =>
+      checks.map((check) => ({
+        key: `${id}/${check.id}`,
+        label: `${project} · ${check.id} (${typeLabels[check.type]})`,
+        signal: getSignal(check, now),
+      })),
+    ),
+  }));
+  const usedSignals = new Set(rows.flatMap(({ tiles }) => tiles.map(({ signal }) => signal)));
+  const legend = (Object.keys(signals) as Signal[]).filter((signal) => usedSignals.has(signal));
+
+  return (
+    <nav className="check-map" aria-labelledby="map-title">
+      <h2 id="map-title">Check map</h2>
+      <ul className="map-groups">
+        {rows.map(({ name, tiles }) => (
+          <li key={name}>
+            <a className="map-group" href={`#group-${name}`}>
+              <span className="map-name">{name}</span>
+              <span className="map-tiles" aria-hidden="true">
+                {tiles.map(({ key, label, signal }) => {
+                  const Icon = signals[signal].icon;
+                  return (
+                    <span className="map-tile" data-signal={signal} key={key} title={`${label} · ${signals[signal].label}`}>
+                      <Icon size={15} strokeWidth={2.5} />
+                    </span>
+                  );
+                })}
+              </span>
+            </a>
+          </li>
+        ))}
+      </ul>
+      <ul className="map-legend" aria-label="Check map legend">
+        {legend.map((signal) => {
+          const { icon: Icon, label } = signals[signal];
+          return (
+            <li data-signal={signal} key={signal}>
+              <Icon size={13} strokeWidth={2.5} aria-hidden="true" />
+              {label}
+            </li>
+          );
+        })}
+      </ul>
+    </nav>
+  );
+}
+
+function StatusOverview({ groups, now }: { groups: readonly StatusGroup[]; now: number }) {
+  const checks = groups.flatMap(({ projects }) => projects.flatMap((project) => project.checks));
+  const { label, tone, issues } = getSummary(checks, now);
+  const Icon = tone === "healthy" ? Check : tone === "failure" ? Activity
+    : tone === "warning" ? TriangleAlert : CircleMinus;
+
+  return (
+    <section className="overview" data-empty={checks.length === 0} aria-labelledby="page-title">
+      <div className="overview-summary" data-tone={tone}>
+        <span className="overview-icon"><Icon size={23} aria-hidden="true" /></span>
+        <h1 id="page-title">{label}</h1>
+        {issues.length > 0 && (
+          <ul className="overview-issues">
+            {issues.map((issue) => <li data-tone={issue.tone} key={issue.label}>{issue.label}</li>)}
+          </ul>
+        )}
+        {checks.length === 0 && <p>Add an address to <code>targets.yaml</code> and restart the monitor.</p>}
+      </div>
+      {checks.length > 0 && <CheckMap groups={groups} now={now} />}
+    </section>
+  );
 }
 
 export function renderStatusPage(
@@ -196,105 +281,58 @@ export function renderStatusPage(
   outages: readonly StatusOutage[],
   now: number,
 ): string {
-  const groups = new Set(projects.map(({ group }) => group));
-  const [summary, ...otherIssues] = getSummaryItems(projects, now);
-  const summaryVariant = summary.tone === "healthy" ? "success"
-    : summary.tone === "failure" ? "destructive" : "default";
+  const groupOrder: readonly ProjectGroup[] = ["Core", "Infra", "Repos"];
+  const groups = groupOrder.map((name) => ({
+    name, projects: projects.filter(({ group }) => group === name),
+  })).filter((group) => group.projects.length > 0);
+
   return "<!doctype html>" + renderToStaticMarkup(
     <html lang="en">
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta httpEquiv="refresh" content="60" />
+        <meta name="theme-color" content="#eef1fa" />
         <title>Micro Club Status</title>
         <link rel="icon" type="image/png" href="/assets/favicon.png" />
         <link rel="stylesheet" href="/assets/status.css" />
         {projects.length > 0 && <script src="/assets/status-clock.js" defer />}
       </head>
-      <body className="min-h-screen bg-surface text-surface-foreground">
-        <header className="border-b border-border bg-background">
-          <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-3 sm:px-6">
-            <span className="header-xs flex items-center gap-2 font-bold">
-              <img src="/assets/favicon.png" alt="" width={32} height={32} className="shrink-0 rounded-sm" />
-              Micro Club
-            </span>
+      <body>
+        <a className="skip-link" href="#main">Skip to status</a>
+        <header className="site-header">
+          <div className="page-width header-content">
+            <div className="brand">
+              <img src="/assets/favicon.png" alt="" width={36} height={36} />
+              <span>Micro Club <span className="brand-section">Status</span></span>
+            </div>
             {projects.length > 0 && (
-              <nav className="flex flex-wrap gap-1" aria-label="Status page">
-                <McButton size="sm" variant="tertiary" nativeButton={false} className={focusStyle}
-                  render={<a href="#checks" />}>
-                  Checks
-                </McButton>
-                <McButton size="sm" variant="tertiary" nativeButton={false} className={focusStyle}
-                  render={<a href="#outages" />}>
-                  Recent outages
-                </McButton>
+              <nav className="site-nav" aria-label="Status page">
+                <a href="#checks">Checks</a>
+                <a href="#outages">Recent outages</a>
               </nav>
             )}
+            <span className="refresh-note"><Clock3 size={16} aria-hidden="true" /> Refreshes every 60s</span>
           </div>
         </header>
-        <main className="mx-auto max-w-6xl space-y-8 px-4 py-8 sm:px-6 sm:py-12">
-          <section className="space-y-4" aria-labelledby="page-title">
-            <h1 className="header-md sm:header-lg font-bold" id="page-title">System status</h1>
-            <McAlert
-              variant={summaryVariant}
-              title={summary.label}
-              items={otherIssues.map(({ label }) => label)}
-              className="w-full max-w-none bg-card [&[data-variant=success]_span]:text-card-foreground [&_li]:text-card-foreground sm:[&_ul]:grid sm:[&_ul]:grid-cols-2 sm:[&_ul]:gap-x-8"
-            />
-          </section>
-          {projects.length > 0 && (
-            <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-              <section className="min-w-0 space-y-6" id="checks" aria-label="Checks">
-                {[...groups].map((group) => (
-                  <section className="space-y-3" aria-labelledby={`group-${group}`} key={group}>
-                    <h2 className="header-xs font-bold" id={`group-${group}`}>{group}</h2>
-                    {projects.filter((project) => project.group === group).map(({ id, name, checks }) => (
-                      <McCard className="gap-0 pb-0" key={id}>
-                        <McCardHeader className="pb-3 [&_h3]:header-xs [&_h3]:wrap-anywhere" title={name} />
-                        <McSeparator className="border-0 bg-border" />
-                        <McCardContent>
-                          <ul className="divide-y divide-border" aria-label={`${name} checks`}>
-                            {checks.map((check) => <CheckRow key={check.id} check={check} now={now} />)}
-                          </ul>
-                        </McCardContent>
-                      </McCard>
-                    ))}
-                  </section>
-                ))}
+        <main className="page-width status-page" id="main" tabIndex={-1}>
+          <StatusOverview groups={groups} now={now} />
+          {groups.length > 0 && (
+            <div className="status-layout">
+              <section id="checks" aria-labelledby="checks-title">
+                <h2 className="section-title" id="checks-title">Monitored checks</h2>
+                <div className="check-board">
+                  <div className="board-columns check-grid" aria-hidden="true">
+                    <span>Check</span>
+                    <span>Status</span>
+                    <div className="check-metrics">
+                      <span>Last checked</span><span>24h uptime</span><span>7d uptime</span>
+                    </div>
+                  </div>
+                  {groups.map((group) => <CheckGroup group={group} now={now} key={group.name} />)}
+                </div>
               </section>
-              <section className="min-w-0 space-y-3" id="outages" aria-labelledby="outages-title">
-                <h2 className="header-xs flex items-center gap-2 font-bold" id="outages-title">
-                  <History aria-hidden="true" className="size-5 shrink-0 text-primary" />
-                  Recent outages
-                </h2>
-                <McCard>
-                  <McCardContent>
-                    {outages.length === 0 ? (
-                      <p className="paragraph-sm text-muted-foreground">No outages recorded.</p>
-                    ) : (
-                      <ol className="divide-y divide-border">
-                        {outages.map(({ checkId, ts, kind, projectName, checkLabel, type, error }, index) => (
-                          <li className="space-y-1 py-3 first:pt-0 last:pb-0" key={`${checkId}/${ts}/${index}`}>
-                            <div className="paragraph-xs flex flex-wrap items-center gap-x-2 gap-y-1 text-muted-foreground">
-                              <McBadge
-                                className={kind === "recovered" ? successBadgeStyle : undefined}
-                                variant={kind === "down" ? "destructive" : "default"}
-                              >
-                                {kind === "down" ? "Down" : "Recovered"}
-                              </McBadge>
-                              <StatusTime at={ts} now={now} />
-                            </div>
-                            <p className="paragraph-sm wrap-anywhere font-medium">
-                              {projectName} · {checkLabel} ({typeLabels[type]})
-                            </p>
-                            {error && <p className="paragraph-xs text-muted-foreground">{error}</p>}
-                          </li>
-                        ))}
-                      </ol>
-                    )}
-                  </McCardContent>
-                </McCard>
-              </section>
+              <OutageTimeline outages={outages} now={now} />
             </div>
           )}
         </main>
@@ -303,43 +341,56 @@ export function renderStatusPage(
   );
 }
 
-function CheckRow({ check, now }: { check: StatusProject["checks"][number]; now: number }) {
+function CheckGroup({ group, now }: { group: StatusGroup; now: number }) {
+  const { name, projects } = group;
+  const Icon = groupIcons[name];
+
+  return (
+    <section className="check-group" aria-labelledby={`group-${name}`}>
+      <h3 className="group-title" id={`group-${name}`}>
+        <Icon size={18} aria-hidden="true" /> {name}
+      </h3>
+      {projects.map(({ id, name, checks }) => (
+        <div className="project" key={id}>
+          <h4 className="project-title">{name}</h4>
+          <ul className="check-list" aria-label={`${name} checks`}>
+            {checks.map((check) => <CheckRow key={check.id} check={check} now={now} />)}
+          </ul>
+        </div>
+      ))}
+    </section>
+  );
+}
+
+function CheckRow({ check, now }: { check: StatusCheck; now: number }) {
   const { id, type, summary } = check;
-  const badge = stateBadges[summary.state];
   const hasDetails = type === "repo"
     ? summary.repoNotice !== null || (summary.state !== "unknown" && summary.lastConfirmedAt !== null)
     : summary.lastError !== null || (type === "tls" && summary.lastCheckAt !== null);
 
   return (
-    <li className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-4 gap-y-2 py-4 sm:grid-cols-[minmax(0,1fr)_9rem_4.5rem]">
-      <div className="min-w-0">
-        <div className="paragraph-sm flex flex-wrap items-center gap-x-2 gap-y-1 font-semibold">
-          <span className="min-w-0 wrap-anywhere">{id}</span>
-          <McBadge variant="secondary">{typeLabels[type]}</McBadge>
-        </div>
-        <p className="paragraph-xs mt-1 text-muted-foreground">
-          {summary.lastCheckAt !== null
-            ? <>Last checked <StatusTime at={summary.lastCheckAt} now={now} /></>
-            : "Awaiting first probe"}
-        </p>
+    <li className="check-row check-grid">
+      <div className="check-identity">
+        <span className="check-name">{id}</span>
+        <span className="check-type">{typeLabels[type]}</span>
       </div>
-      <div className="col-start-2 row-start-1 justify-self-end sm:col-start-3">
-        <McBadge variant={badge.variant} className={summary.state === "up" ? successBadgeStyle : undefined}>
-          {badge.label}
-        </McBadge>
-      </div>
-      <dl className="col-span-full grid grid-cols-2 gap-3 sm:col-span-1 sm:col-start-2 sm:row-start-1">
+      <span className="state-badge" data-state={summary.state}>{signals[summary.state].label}</span>
+      <dl className="check-metrics">
         <div>
-          <dt className="paragraph-xs text-muted-foreground">24h uptime</dt>{" "}
-          <dd className="paragraph-sm font-semibold tabular-nums">{formatUptime(summary.uptime24h)}</dd>
+          <dt className="metric-label">Last checked</dt>{" "}
+          <dd>{summary.lastCheckAt === null ? "Awaiting first probe" : <StatusTime at={summary.lastCheckAt} now={now} />}</dd>
         </div>
         <div>
-          <dt className="paragraph-xs text-muted-foreground">7d uptime</dt>{" "}
-          <dd className="paragraph-sm font-semibold tabular-nums">{formatUptime(summary.uptime7d)}</dd>
+          <dt className="metric-label">24h uptime</dt>{" "}
+          <dd className="uptime">{formatUptime(summary.uptime24h)}</dd>
+        </div>
+        <div>
+          <dt className="metric-label">7d uptime</dt>{" "}
+          <dd className="uptime">{formatUptime(summary.uptime7d)}</dd>
         </div>
       </dl>
       {hasDetails && (
-        <div className="paragraph-xs col-span-full space-y-1 text-muted-foreground">
+        <div className="check-details">
           {type !== "repo" && summary.lastError && (
             <p>Last probe failed · {summary.lastError}</p>
           )}
@@ -348,5 +399,33 @@ function CheckRow({ check, now }: { check: StatusProject["checks"][number]; now:
         </div>
       )}
     </li>
+  );
+}
+
+function OutageTimeline({ outages, now }: { outages: readonly StatusOutage[]; now: number }) {
+  return (
+    <section className="outage-section" id="outages" aria-labelledby="outages-title">
+      <h2 className="section-title" id="outages-title">Recent outages</h2>
+      {outages.length === 0 ? (
+        <p className="empty-history"><Check size={17} aria-hidden="true" /> No outages recorded.</p>
+      ) : (
+        <ol className="timeline">
+          {outages.map(({ checkId, ts, kind, projectName, checkLabel, type, error }, index) => {
+            const Icon = kind === "down" ? ArrowDown : ArrowUp;
+            return (
+              <li className="timeline-event" data-kind={kind} key={`${checkId}/${ts}/${index}`}>
+                <span className="timeline-marker"><Icon size={15} strokeWidth={2.5} aria-hidden="true" /></span>
+                <div className="event-meta">
+                  <strong className="event-kind">{kind === "down" ? "Down" : "Recovered"}</strong>
+                  <StatusTime at={ts} now={now} />
+                </div>
+                <p className="event-name">{projectName} · {checkLabel} ({typeLabels[type]})</p>
+                {error && <p className="event-error">{error}</p>}
+              </li>
+            );
+          })}
+        </ol>
+      )}
+    </section>
   );
 }

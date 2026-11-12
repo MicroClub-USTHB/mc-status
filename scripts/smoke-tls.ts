@@ -222,7 +222,7 @@ subjectAltName = DNS:wrong.test
       return html.includes(text) ? html : null;
     });
     function certificateCheckTime(html: string) {
-      const checkedAt = html.match(/>cert<\/span>[\s\S]*?Last checked <time datetime="([^"]+)"/i)?.[1];
+      const checkedAt = html.match(/>cert<\/span>[\s\S]*?Last checked<\/dt> <dd><time datetime="([^"]+)"/i)?.[1];
       assert.ok(checkedAt, "The certificate row should show its latest check time");
       return checkedAt;
     }

@@ -5,8 +5,7 @@ import { stringify } from "yaml";
 import { getActiveProjects, parseTargetsYaml, type CheckType, type ProjectGroup } from "../src/config";
 import { getCheckSummary, getRecentOutages, openDatabase, recordProbeResult, type ProbeResultDetails } from "../src/db";
 import type { ProbeOutcome } from "../src/state";
-import { McButton } from "../src/ui/components/mc-button";
-import { McCard } from "../src/ui/components/mc-card";
+import { pageAssets } from "../src/ui/page-assets";
 import { renderStatusPage } from "../src/ui/status-page";
 
 type Sample = { minutesAgo: number; outcome: ProbeOutcome; details?: ProbeResultDetails };
@@ -135,17 +134,6 @@ const previews = new Map(scenarios.map(({ path, projects }) => {
   return [path, { db, activeProjects, labels }] as const;
 }));
 
-const assets = new Map([
-  ["/assets/favicon.png", Bun.file(new URL("../src/ui/favicon.png", import.meta.url))],
-  ["/assets/status.css", Bun.file(new URL("../dist/status.css", import.meta.url))],
-  ["/assets/status-clock.js", Bun.file(new URL("../dist/status-clock.js", import.meta.url))],
-  ["/assets/dm-sans.woff2", Bun.file(new URL(import.meta.resolve(
-    "@fontsource-variable/dm-sans/files/dm-sans-latin-wght-normal.woff2",
-  )))],
-  ["/assets/plus-jakarta-sans.woff2", Bun.file(new URL(import.meta.resolve(
-    "@fontsource-variable/plus-jakarta-sans/files/plus-jakarta-sans-latin-wght-normal.woff2",
-  )))],
-]);
 const htmlHeaders = { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" };
 const menu = "<!doctype html>" + renderToStaticMarkup(
   <html lang="en">
@@ -156,27 +144,16 @@ const menu = "<!doctype html>" + renderToStaticMarkup(
       <link rel="icon" type="image/png" href="/assets/favicon.png" />
       <link rel="stylesheet" href="/assets/status.css" />
     </head>
-    <body className="min-h-screen bg-surface text-surface-foreground">
-      <main className="mx-auto max-w-6xl space-y-4 px-4 py-8 sm:px-6">
-        <h1 className="header-md font-bold">UI previews</h1>
-        <McCard>
-          <nav aria-label="Preview scenarios">
-            <ul className="flex flex-wrap gap-2">
-              {scenarios.map(({ path, title }) => (
-                <li key={path}>
-                  <McButton
-                    variant="secondary"
-                    nativeButton={false}
-                    render={<a href={path} />}
-                    className="whitespace-normal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-                  >
-                    {title}
-                  </McButton>
-                </li>
-              ))}
-            </ul>
-          </nav>
-        </McCard>
+    <body>
+      <main className="page-width status-page preview-menu">
+        <h1>UI previews</h1>
+        <nav aria-label="Preview scenarios">
+          <ul>
+            {scenarios.map(({ path, title }) => (
+              <li key={path}><a href={path}>{title}</a></li>
+            ))}
+          </ul>
+        </nav>
       </main>
     </body>
   </html>,
@@ -189,7 +166,7 @@ const server = Bun.serve({
     if (request.method !== "GET") return new Response("Not found", { status: 404 });
     const { pathname } = new URL(request.url);
     if (pathname === "/") return new Response(menu, { headers: htmlHeaders });
-    const asset = assets.get(pathname);
+    const asset = pageAssets.get(pathname);
     if (asset) return new Response(asset);
     const preview = previews.get(pathname);
     if (!preview) return new Response("Not found", { status: 404 });
