@@ -1,0 +1,2 @@
+scripts/setup-linux.sh text eol=lf
+scripts/benchmark/*.sh text eol=lf

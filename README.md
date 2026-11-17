@@ -4,6 +4,10 @@ mc-status monitors Micro Club projects and shows their check results and outage 
 
 ## Build from source
 
+On Ubuntu x64 or Ubuntu in WSL2, run `bash scripts/setup-linux.sh release` to install the pinned Bun version and locked dependencies, validate `targets.yaml`, and build the Linux deployment package in `build/linux-x64/`. Missing OS packages may require your `sudo` password. Copy the executable to the deployment folder with your real `targets.yaml` and set any environment variables in the service environment.
+
+### Manual build
+
 Install **Bun 1.4.4**. From the repo root, run:
 
 ```sh
@@ -48,3 +52,7 @@ Under systemd, set `WorkingDirectory` to the deployed folder and `ExecStart` to 
 To update, stop the app, replace the executable, and start it again. Keep the deployed YAML and `data/mc-status.db`. Set `DB_PATH` to move the database or `GITHUB_TOKEN` to authenticate GitHub API requests. Supply both through the process environment.
 
 The status page shows results and outage history. Discord alerts and dedicated log files are pending. To check the monitor from another machine, point a second instance's HTTP check at its `/healthz` endpoint.
+
+## Benchmark
+
+In a source checkout, use the [Linux benchmark runner](scripts/benchmark/README.md) to measure the standalone executable with k6 and `pidstat`.
