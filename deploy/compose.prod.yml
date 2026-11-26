@@ -1,0 +1,37 @@
+# mc-status production stack (own compose project, next to the other apps).
+#
+#   cd /opt/mc-status
+#   docker compose -f compose.prod.yml --env-file .env up -d --wait
+#
+# Only 127.0.0.1:13200 is published; the host Caddy terminates TLS (see
+# mc-status.caddy). CI pushes :latest on every push to main; the host-wide
+# Watchtower (/opt/watchtower) pulls it and recreates the container.
+
+name: mc-status
+
+services:
+  mc-status:
+    image: ghcr.io/microclub-usthb/mc-status:${TAG:-latest}
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:13200:3000"
+    environment:
+      DB_PATH: /data/mc-status.db
+      # Optional: authenticates the GitHub CI checks (higher rate limit). Leave empty for none.
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+    volumes:
+      - status_data:/data
+    labels:
+      com.centurylinklabs.watchtower.enable: "true"
+    mem_limit: 192m
+    cpus: 0.5
+    pids_limit: 100
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    # the healthcheck comes from the image
+
+volumes:
+  status_data: {}
