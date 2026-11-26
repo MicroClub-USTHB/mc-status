@@ -14,6 +14,11 @@ declare module "*.woff2" {
   export default path;
 }
 
+declare module "*/og-image.png" {
+  const path: string;
+  export default path;
+}
+
 declare module "*/favicon.png" {
   const path: string;
   export default path;
