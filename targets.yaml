@@ -39,26 +39,26 @@ projects:
     checks:
       - id: web
         type: http
-        url: "" # TODO: real HTTP/HTTPS URL
+        url: "https://hr.164-68-103-224.sslip.io/"
       - id: dns
         type: dns
-        url: "" # TODO: real hostname
+        url: "hr.164-68-103-224.sslip.io"
       - id: certificate
         type: tls
-        url: "" # TODO: real HTTPS URL
+        url: "https://hr.164-68-103-224.sslip.io/"
 
   - name: multi-ai
     group: Core
     checks:
       - id: web
         type: http
-        url: "" # TODO: real HTTP/HTTPS URL
+        url: "https://multai.164-68-103-224.sslip.io/"
       - id: dns
         type: dns
-        url: "" # TODO: real hostname
+        url: "multai.164-68-103-224.sslip.io"
       - id: certificate
         type: tls
-        url: "" # TODO: real HTTPS URL
+        url: "https://multai.164-68-103-224.sslip.io/"
 
   - name: foundit
     group: Core
@@ -78,13 +78,16 @@ projects:
     checks:
       - id: web
         type: http
-        url: "" # TODO: real HTTP/HTTPS URL
+        url: "https://leaderboard.164-68-103-224.sslip.io/"
       - id: dns
         type: dns
-        url: "" # TODO: real hostname
+        url: "leaderboard.164-68-103-224.sslip.io"
       - id: certificate
         type: tls
-        url: "" # TODO: real HTTPS URL
+        url: "https://leaderboard.164-68-103-224.sslip.io/"
+      - id: api
+        type: http
+        url: "https://leaderboard.164-68-103-224.sslip.io/api/health"
 
   - name: calendit
     group: Core
