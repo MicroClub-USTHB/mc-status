@@ -7,6 +7,10 @@ import type { CheckType, ProjectGroup } from "../config";
 import type { CheckSummary, GitHubUnavailableReason, OutageEvent } from "../db";
 import { formatStatusAge } from "./status-time";
 
+// Link previews need absolute URLs. PUBLIC_URL overrides the default for another deployment.
+const siteUrl = (process.env.PUBLIC_URL?.trim() || "https://status.164-68-103-224.sslip.io").replace(/\/+$/, "");
+const siteDescription = "Live uptime checks, outage history and CI status for the Micro Club projects.";
+
 interface StatusProject {
   id: string;
   name: string;
@@ -294,6 +298,20 @@ export function renderStatusPage(
         <meta httpEquiv="refresh" content="60" />
         <meta name="theme-color" content="#eef1fa" />
         <title>Micro Club Status</title>
+        <meta name="description" content={siteDescription} />
+        <meta property="og:type" content="website" />
+        <meta property="og:site_name" content="Micro Club" />
+        <meta property="og:title" content="Micro Club Status" />
+        <meta property="og:description" content={siteDescription} />
+        <meta property="og:url" content={`${siteUrl}/`} />
+        <meta property="og:image" content={`${siteUrl}/assets/og-image.png`} />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="The Micro Club status page: all checks passing, next to the headline Micro Club, live status." />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Micro Club Status" />
+        <meta name="twitter:description" content={siteDescription} />
+        <meta name="twitter:image" content={`${siteUrl}/assets/og-image.png`} />
         <link rel="icon" type="image/png" href="/assets/favicon.png" />
         <link rel="stylesheet" href="/assets/status.css" />
         {projects.length > 0 && <script src="/assets/status-clock.js" defer />}
